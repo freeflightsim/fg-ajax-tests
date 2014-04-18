@@ -42,8 +42,28 @@ initComponent: function(){
 },
 
 on_init_load: function(){
+    
+    var feed_url = Ext.getCmp("settings_form").feed_url()
+    
+    //var SERVER = "http://localhost:9999/json/";
+    Ext.data.JsonP.request({
+        url: SERVER,
+        params: {
+            d: 5
+        },
+        callback: function (result) {
+            console.log(result);
+            if (response.success === true) {
+                Ext.Msg.alert('Link Shortened', response.result, Ext.emptyFn);
+            } else {
+                Ext.Msg.alert('Error', response.result, Ext.emptyFn);
+            }
+        }
+    });
+    return
+    
     Ext.Msg.wait("Loading...");
-    var SERVER = "http://locahost:9999";
+   
     Ext.Ajax.request({
         url: SERVER + "/json/",
         method: "GET",

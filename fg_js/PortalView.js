@@ -1,7 +1,7 @@
 
 Ext.define("FG.PortalView", {
 
-extend: "Ext.tab.Panel",
+extend: "Ext.panel.Panel",
 
 requires: [
     "FG.PropsTreeBrowser",
@@ -10,15 +10,18 @@ requires: [
 
 
 initComponent: function(){
-    
-    
-    
+
     Ext.apply(this, {
-        plain: true, bodyBorder: 0, border: 0,
+        plain: true, bodyBorder: 0, border: 0, frame: false,
         //disabled: true,
+        layout: "border",
         items: [
-            Ext.create("FG.Settings", {id: "settings"}),
-            Ext.create("FG.PropsTreeBrowser", {id: "props_tree_browser"}),
+            Ext.create("FG.Settings", {id: "settings_form", region: "east", width: 200}),
+             {xtype: "tabpanel",  region: "center",
+                 items: [
+                    Ext.create("FG.PropsTreeBrowser", {id: "props_tree_browser",}),
+                ]
+             }
            // Ext.create("G2.jobs.JobItemsGrid", {id: "job_items_grid"}),
            // Ext.create("G2.schedule.SchedulePanel", {id: "schedule_panel"})
         ],
