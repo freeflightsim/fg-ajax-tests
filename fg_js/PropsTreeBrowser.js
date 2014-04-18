@@ -43,7 +43,7 @@ initComponent: function(){
 
 on_init_load: function(){
     Ext.Msg.wait("Loading...");
-    var SERVER = "http://locahost:8888";
+    var SERVER = "http://locahost:9999";
     Ext.Ajax.request({
         url: SERVER + "/json/",
         method: "GET",
