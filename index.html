@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<head>
+
+<link rel="stylesheet" type="text/css" href="http://geolabtesting.appspot.com/js/extjs-4.2.1/resources/css/ext-all.css">
+
+<script type="text/javascript" src="http://geolabtesting.appspot.com/js/extjs-4.2.1/ext-all-debug.js"></script>
+
+<script type="text/javascript" src="fg_js/Settings.js"></script>
+<script type="text/javascript" src="fg_js/PropsTreeBrowser.js"></script>
+<script type="text/javascript" src="fg_js/PortalView.js"></script>
+
+</head>
+
+<body>
+
+<script>
+Ext.Loader.setConfig({
+    enabled: false,
+    paths: {
+        'FG': 'fg_js',
+    }
+});
+
+Ext.Ajax.disableCaching = false;
+Ext.Loader.config.disableCaching = false;
+</script>
+
+<div id="widget_goes_here"> </div>
+
+<script>
+Ext.onReady(function(){
+
+
+    Ext.QuickTips.init();
+    Ext.state.Manager.setProvider(new Ext.state.CookieProvider());
+
+    var widget = Ext.create("FG.PortalView", {
+        renderTo: "widget_goes_here", 
+        //frame: false, 
+        //plain: true, border: 0, 
+        height: window.innerHeight - 120
+    });
+    widget.run_show();
+});
+</script>
+
+</body>
+
+</html> 
+
+
