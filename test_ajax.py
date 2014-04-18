@@ -10,7 +10,7 @@ server = "http://localhost:9999"
 
 base_url = "/json/"
 
-url = server + base_url
+url = "http://localhost:9999/json/" #server + base_url
 
 print url
 #user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
