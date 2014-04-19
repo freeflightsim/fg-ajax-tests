@@ -1,15 +1,30 @@
 # -*- coding: utf-8 -*-
 
+import os
 import json
 
 from PyQt4 import QtCore, QtGui, QtNetwork
 from PyQt4.QtCore import Qt
 
+
+IMG_DIR = os.path.abspath( '../images/')
+
+class ICO:
+	refresh = "arrow-circle-double.png"
+	prop = "blue-document-attribute-p.png"
+	folder = "folder.png"
+
+
+def make_icon(file_name):
+	return QtGui.QIcon( IMG_DIR + "/" + file_name )
+
+
 class CP:
+	"""Enum(ish) for the column numbers"""
 	node = 0
 	val = 1
 	type = 2
-	kids = 3
+	child_count = 3
 	path = 4
 
 class MainWindow( QtGui.QMainWindow ):
@@ -44,7 +59,9 @@ class MainWindow( QtGui.QMainWindow ):
 		
 		self.buttRefresh = QtGui.QToolButton()
 		self.topToolBar.addWidget(self.buttRefresh)
+		self.buttRefresh.setIcon( make_icon(ICO.refresh) )
 		self.buttRefresh.setText("Load Server")
+		self.buttRefresh.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 		self.connect( self.buttRefresh, QtCore.SIGNAL("clicked()"), self.send_request)
 
 
@@ -58,7 +75,7 @@ class MainWindow( QtGui.QMainWindow ):
 		hi.setText(CP.node, "Path")
 		hi.setText(CP.val, "Value")
 		hi.setText(CP.type, "Type")
-		hi.setText(CP.kids, "Child Count")
+		hi.setText(CP.child_count, "Child Count")
 		hi.setText(CP.path, "path")
 		
 		self.treeProps.setColumnWidth(CP.node, 200)
@@ -85,6 +102,7 @@ class MainWindow( QtGui.QMainWindow ):
 		request = QtNetwork.QNetworkRequest()
 		request.setUrl( self.get_url() )
 		
+		print "request", request.url().toString()
 		self.reply = self.netMan.get( request )
 		
 		self.connect( self.reply, QtCore.SIGNAL( 'error(QNetworkReply::NetworkError)' ), self.on_http_error )
@@ -101,20 +119,25 @@ class MainWindow( QtGui.QMainWindow ):
 		
 	def on_http_finished(self, reply):
 		
+		## decode json string to data
 		bytes = reply.readAll()
 		json_str = str(QtCore.QString.fromUtf8(bytes.data(), bytes.size()))
 		data = json.loads(json_str)
 		
+		## Load the kids of first node
 		self.treeProps.setUpdatesEnabled(False)
-		self.load_nodes(data['children'], self.treeProps.invisibleRootItem())
+		self.load_prop_nodes(data['children'], self.treeProps.invisibleRootItem())
 		self.treeProps.setUpdatesEnabled(True)
 		
-	def load_nodes(self, nodes, parentNode):
+	def load_prop_nodes(self, nodes, parentNode):
 		
 		
 		for n in nodes:
 			items = self.treeProps.findItems(n['path'], Qt.MatchExactly|Qt.MatchRecursive, CP.path)
 			
+			## get child nodes, we use this to determin icon also
+			
+				
 			if len(items) == 0:
 				# create a new node, and set everything here once, only value is updated later
 				item = QtGui.QTreeWidgetItem(parentNode)
@@ -122,19 +145,30 @@ class MainWindow( QtGui.QMainWindow ):
 				item.setText(CP.path, n['path'])
 				item.setText(CP.type, n['type'])
 				
+				item.setIcon(CP.node, make_icon( ICO.folder if n['type'] == "-" else ICO.prop) )
 			else:
 				# otherwise it exits so first one
 				item = items[0]
 			
-			# set the value
+			nChild = n['nChildren'] 
+			if nChild > 0:
+				item.setText(CP.child_count, str(nChild))
+			else:
+				item.setText(CP.child_count, "-")
+			# set the values
 			v = n.get("value")
 			if v:
 				item.setText(CP.val, str(v))
-				
-			## add kids
-			kids = n.get("children")
-			if kids:
-				self.load_nodes(kids, item)
+			
+			if nChild > 0:
+				kids = n.get("children")	
+				if kids:
+					self.load_prop_nodes(kids, item)
+				else:
+					## add a fake item so + sign shows 
+					itemFake = QtGui.QTreeWidgetItem(item)
+					itemFake.setText(CP.type, "##")
+
 
 
 
