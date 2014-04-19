@@ -59,8 +59,16 @@ class MainWindow( QtGui.QMainWindow ):
 		hi.setText(CP.val, "Value")
 		hi.setText(CP.type, "Type")
 		hi.setText(CP.kids, "Child Count")
+		hi.setText(CP.path, "path")
+		
+		self.treeProps.setColumnWidth(CP.node, 200)
+		self.treeProps.setColumnWidth(CP.val, 100)
+		self.treeProps.setColumnWidth(CP.type, 100)
 		
 		
+		self.setGeometry( 10, 10, 1200, 800 )
+		self.move( 1600, 20 )
+				
 	def get_url(self):
 		
 		u = QtCore.QUrl()
@@ -69,6 +77,7 @@ class MainWindow( QtGui.QMainWindow ):
 		port, ok =self.txtPort.text().toInt() 
 		u.setPort(port)
 		u.setPath("/json/")
+		u.addQueryItem("d", "3")
 		return u
 	
 	def send_request(self):
@@ -96,27 +105,39 @@ class MainWindow( QtGui.QMainWindow ):
 		json_str = str(QtCore.QString.fromUtf8(bytes.data(), bytes.size()))
 		data = json.loads(json_str)
 		
-		self.load_data(data)
-		
-	def load_data(self, data):
-		
 		self.treeProps.setUpdatesEnabled(False)
-		for n in data:
-			print n
-			items = self.treeProps.findItems(n['path'], Qt.MatchExactly, CP.path)
+		self.load_nodes(data['children'], self.treeProps.invisibleRootItem())
+		self.treeProps.setUpdatesEnabled(True)
+		
+	def load_nodes(self, nodes, parentNode):
+		
+		
+		for n in nodes:
+			items = self.treeProps.findItems(n['path'], Qt.MatchExactly|Qt.MatchRecursive, CP.path)
+			
 			if len(items) == 0:
 				# create a new node, and set everything here once, only value is updated later
-				item = QtGui.QTreeWidgetItem()
+				item = QtGui.QTreeWidgetItem(parentNode)
 				item.setText(CP.node, n['name'])
 				item.setText(CP.path, n['path'])
 				item.setText(CP.type, n['type'])
+				
 			else:
-				# otherwise it exits fo first one
+				# otherwise it exits so first one
 				item = items[0]
-			#item.setText(CP.val, n[''])
-		self.treeProps.setUpdatesEnabled(True)
-		#print "done", reply
-		
+			
+			# set the value
+			v = n.get("value")
+			if v:
+				item.setText(CP.val, str(v))
+				
+			## add kids
+			kids = n.get("children")
+			if kids:
+				self.load_nodes(kids, item)
+
+
+
 		
 		
 	
