@@ -21,12 +21,12 @@ initComponent: function(){
            labelWidth: 60, labelAlign: "right",
         }, 
         items: [
-            {name: "host", fieldLabel: "Ip/Server",  xtype: "textfield", value: "localhost"},
+            {name: "host", fieldLabel: "fg server",  xtype: "textfield", value: "localhost"},
             {name: "port", fieldLabel: "Port",  xtype: "numberfield", value: "9999"},
             {xtype: "fieldset", title: "Request Type",
                 items: [
-                    {xtype: "radio", value: "ajax", boxLabel: "Ajax", name: "request_type", checked: true},
-                    {xtype: "radio", value: "jsonp", boxLabel: "JsonP", name: "request_type"},
+                    {xtype: "radio", name: "rtype", value: "ajax", boxLabel: "Ajax", myName: "ajax"},
+                    {xtype: "radio", name: "rtype", value: "jsonp", boxLabel: "JsonP", checked: true},
                 ]
             },
             
@@ -36,9 +36,12 @@ initComponent: function(){
     this.callParent();
 },
 
-feed_url: function(){
+fg_url: function(){
     // is there a neater way than this ?
     return "http://" + this.down("[name=host]").getValue() + ":" + this.down("[name=port]").getValue() + "/json/";
+},
+is_ajax: function(){
+    return this.down("[myName=ajax]").getValue() === true;
 }
 
 });

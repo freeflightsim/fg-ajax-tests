@@ -28,7 +28,8 @@ initComponent: function(){
     Ext.apply(this, {
         plain: true, bodyBorder: 0, border: 0,
         tbar: [
-            {text: "Init Load", handler: this.on_init_load ,scope: this}
+            "->",
+            {text: "Init Load", iconCls: "icoRefresh", handler: this.on_init_load ,scope: this}
             
         ],
         
@@ -43,51 +44,51 @@ initComponent: function(){
 
 on_init_load: function(){
     
-    var feed_url = Ext.getCmp("settings_form").feed_url()
-    
-    //var SERVER = "http://localhost:9999/json/";
-    Ext.data.JsonP.request({
-        url: SERVER,
-        params: {
-            d: 5
-        },
-        callback: function (result) {
-            console.log(result);
-            if (response.success === true) {
-                Ext.Msg.alert('Link Shortened', response.result, Ext.emptyFn);
-            } else {
-                Ext.Msg.alert('Error', response.result, Ext.emptyFn);
-            }
-        }
-    });
-    return
-    
-    Ext.Msg.wait("Loading...");
-   
-    Ext.Ajax.request({
-        url: SERVER + "/json/",
-        method: "GET",
-        scope: this,
-        success: function( result ){
-            
-            var data = Ext.decode( result.responseText );
-            console.log("data", data);
-            this.load_data(data);
+    //Ext.Msg.wait("Loading...");   
+    var frm = Ext.getCmp("settings_form"); // the form
 
-            
-            //= Set Titles
-            //this.down("#job_items_grid").setTitle("Tests - <small>" + Ext.getStore("job_items").getCount() + "</small>");
-            //this.down("#samples_grid").setTitle("Samples - <small>" + Ext.getStore("samples").getCount() + "</small>");
-            
-            this.setDisabled(false);
-            Ext.Msg.hide();
-        },
-        failure: function(){
-            this.my_unmask();
-            G2.msg('Fail');
-        }
-    });
-    
+    if( frm.is_ajax() ){
+        
+        //= Make and Ajax request
+        Ext.Ajax.request({
+            url: frm.fg_url(),
+            method: "GET",
+            scope: this,
+            success: function( result ){
+                
+                var data = Ext.decode( result.responseText );
+                console.log("data", data);
+                this.load_data(data);
+                this.setDisabled(false);
+                Ext.Msg.hide();
+            },
+            failure: function(){
+                ///this.my_unmask();
+                //G2.msg('Fail');
+                console.log("fail");
+            }
+        });
+        
+    } else {
+        
+        //= Fallback on JsonP request
+        Ext.data.JsonP.request({
+            url: frm.fg_url(),
+            params: {
+                d: 1
+            },
+            callbackKey: "callback",
+            callback: function (result) {
+                console.log(result);
+                //if (response.success === true) {
+                //    Ext.Msg.alert('Link Shortened', response.result, Ext.emptyFn);
+                //} else {
+                //    Ext.Msg.alert('Error', response.result, Ext.emptyFn);
+                //}
+            }
+        });
+        
+    }
 }
 
 });
