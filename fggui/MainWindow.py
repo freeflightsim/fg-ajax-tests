@@ -44,6 +44,9 @@ class MainWindow( QtGui.QMainWindow ):
 		##========================================
 		## Objects
 		
+		self.buttGrooupLoadNode = QtGui.QButtonGroup(self)
+		self.buttGrooupLoadNode.setExclusive(False)
+		self.connect(self.buttGrooupLoadNode, QtCore.SIGNAL("buttonClicked(QAbstractButton *)"), self.on_reload_node_clicked)
 		## network access - Note error is in reply !
 		self.netMan = QtNetwork.QNetworkAccessManager(self)
 		self.connect(self.netMan , QtCore.SIGNAL("finished(QNetworkReply*)"), self.on_http_finished)
@@ -84,7 +87,7 @@ class MainWindow( QtGui.QMainWindow ):
 
 
 		## ========================================================
-		## Request Info
+		## Request Info Dock
 
 		dock = QtGui.QDockWidget("Net Info")
 		self.addDockWidget(Qt.LeftDockWidgetArea, dock)
@@ -107,6 +110,28 @@ class MainWindow( QtGui.QMainWindow ):
 		dnetLayout.addWidget(self.txtRawJson, 2)
 		
 	
+		## ========================================================
+		## Request Info Dock
+
+		dock = QtGui.QDockWidget("Watching Nodes")
+		self.addDockWidget(Qt.RightDockWidgetArea, dock)
+		
+		dwWidget = QtGui.QWidget()
+		dock.setWidget(dwWidget)
+		dwLayout = QtGui.QVBoxLayout()
+		dwLayout.setContentsMargins(0,0,0,0)
+		dwLayout.setSpacing(0)
+		dwWidget.setLayout(dwLayout)
+		
+		
+		self.treeWatch = QtGui.QTreeWidget()
+		dwLayout.addWidget(self.treeWatch, 1)
+		self.treeWatch.setRootIsDecorated(False)
+		self.treeWatch.headerItem().setText(0, "Node")
+		self.treeWatch.headerItem().setText(1, "Value")		
+		
+		self.treeWatch.setMinimumWidth(400)
+
 
 		## ========================================================
 		## Central Widget
@@ -136,15 +161,17 @@ class MainWindow( QtGui.QMainWindow ):
 		self.treeProps.setColumnWidth(CP.val, 100)
 		self.treeProps.setColumnWidth(CP.type, 100)
 		
+		self.treeProps.setColumnHidden(CP.path, True)
+		
 		self.connect(self.treeProps, QtCore.SIGNAL("expanded(const QModelIndex &)"), self.on_tree_props_expanded)
+		self.connect(self.modelProps, QtCore.SIGNAL("itemChanged(QStandardItem *)"), self.on_prop_item_changed)
 		
 		## hack for oppetes dualcreen
 		if os.path.exists("LOCAL"):
 			self.setGeometry( 10, 10, 1200, 800 )
 			self.move( 1600, 20 )
 		
-	def on_load_server(self):
-		self.send_request("/")
+
 		
 	def on_tree_props_expanded(self, proxy_idx):
 		
@@ -155,9 +182,25 @@ class MainWindow( QtGui.QMainWindow ):
 			#item.child(0,0).setText("Loading")
 			self.send_request(item.data(Qt.UserRole).toString())
 	
+	def on_prop_item_changed(self, item):
+		print item
+		if item.index().column() == CP.val:
+			## check its checked
+			if item.checkState() == Qt.Checked:
+				path = self.modelProps.itemFromIndex( self.modelProps.index( item.index().row(), CP.path, item.parent().index()) ).text()
+				items = self.treeWatch.findItems(path, Qt.MatchExactly, 0)
+				if len(items) == 0:
+					item = QtGui.QTreeWidgetItem()
+					item.setText(0, path)
+					self.treeWatch.addTopLevelItem(item)
+	
 	def on_props_filter(self, txt):
 		self.modelPropsFilter.setFilterFixedString(txt)	
 		self.modelPropsFilter.setFilterKeyColumn(CP.path)
+	
+	def on_reload_node_clicked(self, butt):
+		path = butt.property("path").toString()
+		self.send_request(path)
 				
 	def get_url(self, path):
 		
@@ -169,7 +212,10 @@ class MainWindow( QtGui.QMainWindow ):
 		u.setPath("/json" + path)
 		u.addQueryItem("d", "1")
 		return u
-	
+
+	def on_load_server(self):
+		self.send_request("/")
+		
 	def send_request(self, path):
 		
 		self.txtRawJson.clear()
@@ -256,12 +302,15 @@ class MainWindow( QtGui.QMainWindow ):
 				# create a new node, and set everything here once, only value is updated later
 				iName = QtGui.QStandardItem()
 				iName.setText(n['name'])
-				iName.setIcon( make_icon( ICO.folder if n['type'] == "-" else ICO.prop) )
+				
+				iName.setIcon( make_icon( ICO.folder if nChild > 0 else ICO.prop) )
 				iName.setData(n['path'], Qt.UserRole)
 				
 				iValue = QtGui.QStandardItem()
 				iValue.setTextAlignment(Qt.AlignRight)
-				iValue.setCheckable(True)
+				if nChild == 0:
+					iValue.setCheckable(True)
+		
 				if v:
 					iValue.setText(str(v))
 								
@@ -278,6 +327,15 @@ class MainWindow( QtGui.QMainWindow ):
 				
 				parentItem.appendRow([iName, iValue, iType, iCount, iPath])
 				
+				if nChild > 0:
+					idx = self.modelProps.indexFromItem(iValue)
+					butt = QtGui.QToolButton()
+					butt.setText("Reload")
+					butt.setProperty("path",n['path'])
+					butt.setAutoRaise(True)
+					self.treeProps.setIndexWidget(self.modelPropsFilter.mapFromSource(idx), butt)
+					self.buttGrooupLoadNode.addButton(butt)
+					
 				"""
 				item.setText(CP.node, n['name'])
 				item.setText(CP.path, n['path'])
