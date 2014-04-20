@@ -21,6 +21,7 @@ class ICO:
 def make_icon(file_name):
 	return QtGui.QIcon( IMG_DIR + "/" + file_name )
 
+FAKE_NODE = "#FAKE#"
 
 class CP:
 	"""Enum(ish) for the column numbers"""
@@ -79,50 +80,103 @@ class MainWindow( QtGui.QMainWindow ):
 		self.buttRefresh.setIcon( make_icon(ICO.refresh) )
 		self.buttRefresh.setText("Load Server")
 		self.buttRefresh.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-		self.connect( self.buttRefresh, QtCore.SIGNAL("clicked()"), self.send_request)
+		self.connect( self.buttRefresh, QtCore.SIGNAL("clicked()"), self.on_load_server)
 
 
 		## ========================================================
-		## Tree
+		## Request Info
+
+		dock = QtGui.QDockWidget("Net Info")
+		self.addDockWidget(Qt.LeftDockWidgetArea, dock)
+		
+		dnetWidget = QtGui.QWidget()
+		dock.setWidget(dnetWidget)
+		dnetLayout = QtGui.QVBoxLayout()
+		dnetLayout.setContentsMargins(0,0,0,0)
+		dnetLayout.setSpacing(0)
+		dnetWidget.setLayout(dnetLayout)
+		
+		
+		self.treeHttp = QtGui.QTreeWidget()
+		dnetLayout.addWidget(self.treeHttp, 1)
+		self.treeHttp.setRootIsDecorated(False)
+		self.treeHttp.headerItem().setText(0, "Name")
+		self.treeHttp.headerItem().setText(1, "Value")
+		
+		self.txtRawJson = QtGui.QTextEdit()
+		dnetLayout.addWidget(self.txtRawJson, 2)
+		
+	
+
+		## ========================================================
+		## Central Widget
+		cWidget = QtGui.QWidget()
+		self.setCentralWidget(cWidget)
+		cLayout = QtGui.QVBoxLayout()
+		cLayout.setContentsMargins(0,0,0,0)
+		cLayout.setSpacing(0)
+		cWidget.setLayout(cLayout)
+		
+		cToolBar = QtGui.QToolBar()
+		cLayout.addWidget(cToolBar)
+		
+		self.txtPropsFilter = QtGui.QLineEdit()
+		cToolBar.addWidget(self.txtPropsFilter)
+		self.connect(self.txtPropsFilter, QtCore.SIGNAL("textChanged(const QString &)"), self.on_props_filter)
+		## ==========================
+		## Properties Tree
 		self.treeProps = QtGui.QTreeView()
-		self.setCentralWidget(self.treeProps)
+		cLayout.addWidget(self.treeProps)
 		
 		self.treeProps.setModel(self.modelPropsFilter)
 		self.treeProps.setSortingEnabled(True)
 		self.treeProps.setRootIsDecorated(True)
 		
-		"""
-		hi = self.treeProps.headerItem()
-		hi.setText(CP.node, "Path")
-		hi.setText(CP.val, "Value")
-		hi.setText(CP.type, "Type")
-		hi.setText(CP.child_count, "Child Count")
-		hi.setText(CP.path, "path")
-		"""
 		self.treeProps.setColumnWidth(CP.node, 200)
 		self.treeProps.setColumnWidth(CP.val, 100)
 		self.treeProps.setColumnWidth(CP.type, 100)
+		
+		self.connect(self.treeProps, QtCore.SIGNAL("expanded(const QModelIndex &)"), self.on_tree_props_expanded)
 		
 		## hack for oppetes dualcreen
 		if os.path.exists("LOCAL"):
 			self.setGeometry( 10, 10, 1200, 800 )
 			self.move( 1600, 20 )
+		
+	def on_load_server(self):
+		self.send_request("/")
+		
+	def on_tree_props_expanded(self, proxy_idx):
+		
+		item = self.modelProps.itemFromIndex(self.modelPropsFilter.mapToSource(proxy_idx))
+		
+		if item.child(0,0).text() == FAKE_NODE:
+			self.modelProps.removeRow(0, item.index())
+			#item.child(0,0).setText("Loading")
+			self.send_request(item.data(Qt.UserRole).toString())
+	
+	def on_props_filter(self, txt):
+		self.modelPropsFilter.setFilterFixedString(txt)	
+		self.modelPropsFilter.setFilterKeyColumn(CP.path)
 				
-	def get_url(self):
+	def get_url(self, path):
 		
 		u = QtCore.QUrl()
 		u.setScheme("http")
 		u.setHost(self.txtHost.text())
 		port = int(self.txtPort.text()) 
 		u.setPort(port)
-		u.setPath("/json/")
-		u.addQueryItem("d", "2")
+		u.setPath("/json" + path)
+		u.addQueryItem("d", "1")
 		return u
 	
-	def send_request(self):
+	def send_request(self, path):
+		
+		self.txtRawJson.clear()
+		self.treeHttp.clear()
 		
 		request = QtNetwork.QNetworkRequest()
-		request.setUrl( self.get_url() )
+		request.setUrl( self.get_url(path) )
 		
 		print "request", request.url().toString()
 		self.reply = self.netMan.get( request )
@@ -134,28 +188,55 @@ class MainWindow( QtGui.QMainWindow ):
 		"""
 		
 	def on_http_error(self, err):
-		print "error", err
-	
-	def on_http_read(self):
-		print "read"
+		self.treeHttp.clear()
+		item = QtGui.QTreeWidgetItem()
+		item.setText(0, "Error" )
+		item.setText(1, "??" )
+		self.treeHttp.addTopLevelItem(item)
+		
 		
 	def on_http_finished(self, reply):
 		
+		if reply.error():
+			## its an error so handled by on_http_error
+			return
+		
+		self.treeHttp.setUpdatesEnabled(False)
+		self.treeHttp.clear()
+		for h in reply.rawHeaderPairs():
+			item = QtGui.QTreeWidgetItem()
+			item.setText(0, str(h[0]) )
+			item.setText(1, str(h[1]) )
+			self.treeHttp.addTopLevelItem(item)
+		self.treeHttp.setUpdatesEnabled(True)
+
+		
 		## decode json string to data
 		bytes = reply.readAll()
-		json_str = str(bytes)
+		json_str = str(bytes)		
 		data = json.loads(json_str)
 		
+		self.txtRawJson.setText(json_str)
+		
 		## Load the kids of first node
+		## dfind which node this is, and find its parent
+		if data['path'] == "": ## should be "/"
+			## its the root node
+			parentItem = self.modelProps.invisibleRootItem()
+			
+		else:
+			## find the parent
+			idxs = self.modelProps.match(self.modelProps.index(0,0), Qt.UserRole, data['path'], -1, Qt.MatchExactly|Qt.MatchRecursive) 
+			parentItem = self.modelProps.itemFromIndex( idxs[0] )
 		#self.treeProps.setUpdatesEnabled(False)
 		
-		self.load_prop_nodes(data['children'], self.modelProps.invisibleRootItem())
+		self.load_prop_nodes(data['children'], parentItem)
 		#self.treeProps.expandAll()
 		
 		#self.treeProps.setUpdatesEnabled(True)
 		
 		
-	def load_prop_nodes(self, nodes, parentNode):
+	def load_prop_nodes(self, nodes, parentItem):
 		
 		
 		for n in nodes:
@@ -164,7 +245,7 @@ class MainWindow( QtGui.QMainWindow ):
 			#items = self.modelProps.findItems(  str(n['path']), Qt.MatchRecursive, CP.path)
 			
 			idxs = self.modelProps.match(idx, Qt.UserRole, n['path'], -1, Qt.MatchExactly|Qt.MatchRecursive) 
-			#print items
+			#print n['path'], idxs
 			## get child nodes, we use this to determin icon also
 			
 			nChild = n['nChildren'] 
@@ -180,6 +261,7 @@ class MainWindow( QtGui.QMainWindow ):
 				
 				iValue = QtGui.QStandardItem()
 				iValue.setTextAlignment(Qt.AlignRight)
+				iValue.setCheckable(True)
 				if v:
 					iValue.setText(str(v))
 								
@@ -194,7 +276,7 @@ class MainWindow( QtGui.QMainWindow ):
 				iPath = QtGui.QStandardItem()
 				iPath.setText(n['path'])
 				
-				parentNode.appendRow([iName, iValue, iType, iCount, iPath])
+				parentItem.appendRow([iName, iValue, iType, iCount, iPath])
 				
 				"""
 				item.setText(CP.node, n['name'])
@@ -208,7 +290,7 @@ class MainWindow( QtGui.QMainWindow ):
 					else:
 						## add a fake item so + sign shows 
 						itemFake = QtGui.QStandardItem()
-						itemFake.setText("##")
+						itemFake.setText(FAKE_NODE)
 						iName.appendRow([itemFake, QtGui.QStandardItem(), QtGui.QStandardItem(), QtGui.QStandardItem(), QtGui.QStandardItem()])
 			else:
 				# otherwise it exits so first one
