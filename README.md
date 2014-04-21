@@ -7,6 +7,9 @@ Some quick apps to test the new (spring 2013) ajax and websocket interfaces for 
 * fggui - Simple PyQt app
 
 
+Tested on RPI
+
+
 
 
 
